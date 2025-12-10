@@ -39,6 +39,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'drf_yasg',
     'debug_toolbar',
+    #------------
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
@@ -50,7 +52,11 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'debug_toolbar.middleware.DebugToolbarMiddleware',
+    #------------------------------------------------
+    'corsheaders.middleware.CorsMiddleware',
 ]
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 STATIC_URL = '/static/'
 
@@ -77,15 +83,19 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'oulearningapis.wsgi.application'
 
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination'
+}
+
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': '',
+        'NAME': 'oulearningdb',
         'USER': 'root',
-        'PASSWORD': '',
+        'PASSWORD': 'quocnhan2005',
         'HOST': ''  # mặc định localhost
     }
 }
@@ -94,16 +104,16 @@ import pymysql
 
 pymysql.install_as_MySQLdb()
 
-# AUTH_USER_MODEL = 'courses.User'
+AUTH_USER_MODEL = 'courses.User'
 
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
 
 cloudinary.config(
-    cloud_name="",
-    api_key="",
-    api_secret=""
+    cloud_name="duk4u0tsp",
+    api_key="169233679562821",
+    api_secret="1as0RHa0xZv-7VrWx_ltUJ2Tgs4"
 )
 
 # Password validation

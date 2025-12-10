@@ -24,11 +24,11 @@ from django.conf import settings
 
 schema_view = get_schema_view(
     openapi.Info(
-        title="Course API",
+        title="OU Learning API",
         default_version='v1',
-        description="APIs for CourseApp",
-        contact=openapi.Contact(email="thanh.dh@ou.edu.vn"),
-        license=openapi.License(name="Dương Hữu Thành@2021"),
+        description="APIs for OU Learning App",
+        contact=openapi.Contact(email="nhan.tq2005@gmail.com"),
+        license=openapi.License(name="Trần Quốc Nhân @ 2025"),
     ),
     public=True,
     permission_classes=(permissions.AllowAny,),
