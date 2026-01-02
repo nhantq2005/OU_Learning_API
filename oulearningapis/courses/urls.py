@@ -12,6 +12,7 @@ r.register('lessons', views.LessonView, basename='lesson')
 r.register('tags', views.TagView, basename='tag')
 r.register('reviews', views.ReviewView, basename='review')
 r.register('users', views.UserView, basename='user')
+r.register('enrollments', views.EnrollmentView, basename='enrollment')
 
 
 urlpatterns = [

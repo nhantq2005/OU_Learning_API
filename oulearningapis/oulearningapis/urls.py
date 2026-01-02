@@ -31,7 +31,7 @@ schema_view = get_schema_view(
         license=openapi.License(name="Trần Quốc Nhân @ 2025"),
     ),
     public=True,
-    permission_classes=(permissions.AllowAny,),
+    # permission_classes=(permissions.AllowAny,),
 )
 
 urlpatterns = [
@@ -46,5 +46,7 @@ urlpatterns = [
     re_path(r'^redoc/$',
             schema_view.with_ui('redoc', cache_timeout=0),
             name='schema-redoc'),
-    path('__debug__/', include(debug_toolbar.urls))
+    path('__debug__/', include(debug_toolbar.urls)),
+    path('o/', include('oauth2_provider.urls',
+namespace='oauth2_provider')),
 ]

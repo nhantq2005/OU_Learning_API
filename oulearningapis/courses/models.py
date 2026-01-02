@@ -9,7 +9,13 @@ class RoleChoice(models.TextChoices):
     STUDENT = 'student', 'Sinh viên'
 
 
+class GenderChoice(models.TextChoices):
+    MALE = 'male', 'Nam'
+    STUDENT = 'female', 'Nữ'
+
+
 class User(AbstractUser):
+    gender = models.CharField(choices=GenderChoice.choices, max_length=10, null=True)
     role = models.CharField(max_length=10, choices=RoleChoice.choices)
     is_verified = models.BooleanField(default=True)
     avatar = CloudinaryField(null=True)
@@ -62,7 +68,6 @@ class Course(models.Model):
     intro_video = CloudinaryField(resource_type="video", null=False)
     active = models.BooleanField(default=True)
     image = CloudinaryField(null=False)
-    duration_minutes = models.FloatField()
     # MỐI QUAN HỆ
     instructor = models.ForeignKey(User, on_delete=models.PROTECT)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)
@@ -71,6 +76,10 @@ class Course(models.Model):
     class Meta:
         unique_together = ('title', 'category')
         ordering = ['-id']
+
+
+    def __str__(self):
+        return self.title
 
 
 class EnrollmentStatus(models.TextChoices):
