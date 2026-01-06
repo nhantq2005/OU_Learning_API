@@ -1,13 +1,14 @@
+from django.db.models import Avg
 from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
-from courses.models import Category, Course, Tag, Enrollment, Lesson, Chapter, Review, User
+from courses.models import Category, Course, Tag, Enrollment, Lesson, Review, User, InstructorProfile
 from rest_framework.exceptions import ValidationError
 
 
 class UserInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id','first_name', 'last_name','gender', 'avatar', 'role', 'is_verified']
+        fields = ['id','first_name', 'last_name','gender', 'avatar', 'role', 'is_active','email']
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -18,14 +19,34 @@ class UserSerializer(serializers.ModelSerializer):
         user.save()
         return user
 
+    def update(self, instance, validated_data):
+        keys = set(validated_data.keys())
+        if keys - {'first_name', 'last_name', 'email'}:
+            raise ValidationError({'error': 'Invalid fields'})
+
+        return super().update(instance, validated_data)
+
     class Meta:
         model = User
-        fields = ['id','first_name', 'last_name','gender', 'username', 'password', 'avatar', 'role', 'is_verified']
+        fields = ['id','first_name', 'last_name','gender', 'username', 'password', 'avatar', 'role', 'is_active','email']
         extra_kwargs = {
             'password': {
                 'write_only': True
             }
         }
+
+class IntructorProfileSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = InstructorProfile
+        fields = ['id','document', 'bank_account', 'expertise', 'user']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.document:
+            data['document'] = instance.document.url
+
+        return data
 
 
 
@@ -55,6 +76,13 @@ class LessonSerializer(serializers.ModelSerializer):
         model = Lesson
         fields = ['id', 'name', 'thumbnail']
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.thumbnail:
+            data['thumbnail'] = instance.thumbnail.url
+
+        return data
+
 
 # LẤY CHI TIẾT BÀI HỌC
 class LessonDetailSerializer(LessonSerializer):
@@ -62,8 +90,35 @@ class LessonDetailSerializer(LessonSerializer):
         model = LessonSerializer.Meta.model
         fields = LessonSerializer.Meta.fields + ['video', 'description'] #COURSE
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.video:
+            data['video'] = instance.video.url
+
+        return data
+
+    def create(self, validated_data):
+        # Loại bỏ trường 'user' nếu nó tồn tại trong validated_data
+        # để tránh lỗi TypeError khi gọi Lesson.objects.create()
+        #XEM KỸ
+        validated_data.pop('user', None)
+
+        return super().create(validated_data)
+
 
 class CourseSerializer(ImageSerializer):
+    avg_rating = serializers.SerializerMethodField()
+
+    def get_avg_rating(self, obj):
+        # obj chính là đối tượng Course hiện tại
+        # review_set là reverse relation từ Course sang Review (do bạn chưa đặt related_name)
+        # Nếu bạn đã đặt related_name='reviews' trong models.py thì dùng obj.reviews
+        result = obj.review_set.aggregate(Avg('rating'))
+
+        # Kết quả trả về dạng {'rating__avg': 4.5} hoặc {'rating__avg': None}
+        return round(result['rating__avg'],1) or 0
+
+
     tags = TagSerializer(many=True, read_only=True)
     instructor = UserInfoSerializer(read_only=True)
     category = CategorySerializer(read_only=True)
@@ -87,22 +142,22 @@ class CourseSerializer(ImageSerializer):
         write_only=True
     )
 
+    # def to_representation(self, instance):
+    #     data = super().to_representation(instance)
+    #     if instance.image:
+    #         data['image'] = instance.image.url
+    #
+    #     return data
+
     class Meta:
         model = Course
-        fields = ['id', 'title',  'price', 'image', 'category', 'tags', 'instructor', 'category_id', 'tags_id', 'instructor_id']
+        fields = ['id', 'title',  'price', 'image', 'category', 'tags', 'instructor', 'category_id', 'tags_id', 'instructor_id', 'avg_rating']
 
 
     #
     # def create(self, validated_data):
     #     # 1. Tách dữ liệu nested ra khỏi validated_data
     #     tags_data = validated_data.pop('tags')
-    #     category_data = validated_data.pop('category')
-    #
-    #     # 2. Xử lý Category: Lấy cái đã có hoặc tạo mới
-    #     category_obj, _ = Category.objects.get_or_create(**category_data)
-    #
-    #     # 3. Tạo Course trước
-    #     course = Course.objects.create(category=category_obj, **validated_data)
     #
     #     # 4. Xử lý Tags: Lấy cái đã có hoặc tạo mới rồi add vào course
     #     for tag_data in tags_data:
@@ -112,55 +167,52 @@ class CourseSerializer(ImageSerializer):
     #     return course
 
 class CourseDetailSerializer(CourseSerializer):
+    # 1. Khai báo thêm trường is_enrolled
+    is_enrolled = serializers.SerializerMethodField()
 
+    def get_is_enrolled(self, course):
+        request = self.context.get('request')
+        # Kiểm tra nếu user đã đăng nhập
+        if request and request.user.is_authenticated:
+            # Kiểm tra trong bảng Enrollment xem có cặp (user, course) này không
+            # Lưu ý: 'enrollment_set' là tên mặc định nếu bạn chưa đặt related_name trong models.py
+            return course.enrollment_set.filter(user=request.user).exists()
+        return False
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.intro_video:
+            data['intro_video'] = instance.intro_video.url
+
+        return data
 
     class Meta:
         model = CourseSerializer.Meta.model
-        fields = CourseSerializer.Meta.fields + [ 'intro_video','description']
-
-
-class ChapterSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Chapter
-        fields = ['id', 'title','course']
+        fields = CourseSerializer.Meta.fields + [ 'intro_video','description', 'is_enrolled']
 
 
 class ReviewSerializer(serializers.ModelSerializer):
+    # Serializer để hiển thị thông tin user đầy đủ (Avatar, Tên) thay vì chỉ hiện ID
+    user = UserInfoSerializer(read_only=True)
+
     class Meta:
         model = Review
-        fields = ['rating', 'comment', 'created_date', 'user', 'course']
-        extra_kwargs = {
-            'lesson': {
-                'write_only': True
-            }
-        }
+        fields = ['id', 'rating', 'comment', 'created_date', 'user', 'course']
+        # Đặt course là read_only vì ta lấy từ URL, không lấy từ body JSON
+        read_only_fields = ['user', 'course', 'created_date']
 
-        def to_representation(self, instance):
-            data = super().to_representation(instance)
-            if instance.avatar:
-                data['avatar'] = instance.avatar.url
-
-            return data
-
-        def create(self, validated_data):
-            user = User(**validated_data)
-            user.set_password(user.password)
-            user.save()
-
-            return user
-
-        def update(self, instance, validated_data):
-            keys = set(validated_data.keys())
-            if keys - {'first_name', 'last_name', 'email'}:
-                raise ValidationError({'error': 'Invalid fields'})
-
-            return super().update(instance, validated_data)
+class ReviewDetailSerializer(ReviewSerializer):
+    user = UserInfoSerializer(read_only=True)
+    course = CourseSerializer(read_only=True)
+    class Meta:
+        model = ReviewSerializer.Meta.model
+        fields = ReviewSerializer.Meta.fields+['created_date', 'user', 'course']
 
 
 class EnrollmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Enrollment
-        fields = '__all__'
+        fields = ['course', 'user']
 
     validators = [
         UniqueTogetherValidator(
@@ -169,3 +221,9 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             message="Bạn đã đăng ký khóa học này rồi."
         )
     ]
+
+class EnrollmentDetailSerializer(EnrollmentSerializer):
+    course = CourseSerializer(read_only=True)
+    class Meta:
+        model = Enrollment
+        fields = EnrollmentSerializer.Meta.fields+['enrolled_date','process_percent','status', 'course']

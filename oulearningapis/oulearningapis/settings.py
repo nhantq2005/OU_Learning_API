@@ -11,6 +11,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+import json
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -101,7 +104,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'oulearningdb',
         'USER': 'root',
-        'PASSWORD': 'quocnhan2005',
+        'PASSWORD': ,
         'HOST': ''  # mặc định localhost
     }
 }
@@ -117,9 +120,9 @@ import cloudinary.uploader
 import cloudinary.api
 
 cloudinary.config(
-    cloud_name="duk4u0tsp",
-    api_key="169233679562821",
-    api_secret="1as0RHa0xZv-7VrWx_ltUJ2Tgs4"
+    cloud_name=os.getenv('CLOUD_NAME'),
+    api_key=os.getenv('API_KEY'),
+    api_secret=os.getenv('API_SECRET')
 )
 
 # Password validation
@@ -160,3 +163,15 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+#MAIL
+# settings.py
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+# Thay bằng email và mật khẩu ứng dụng (App Password) của bạn
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')

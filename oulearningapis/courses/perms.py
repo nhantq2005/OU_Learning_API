@@ -1,7 +1,7 @@
-from rest_framework import permissions
+from rest_framework import permissions, request
 from rest_framework.permissions import IsAuthenticated, BasePermission
 
-from courses.models import Lesson, Chapter, Course, Enrollment
+from courses.models import Lesson, Course, Enrollment, RoleChoice
 
 
 class ReviewOwner(IsAuthenticated):
@@ -39,8 +39,6 @@ class IsEnrolled(permissions.BasePermission):
         # 2. Xác định Course từ object hiện tại (Bài học -> Chương -> Khóa học)
         course = None
         if isinstance(obj, Lesson):
-            course = obj.chapter.course
-        elif isinstance(obj, Chapter):
             course = obj.course
         elif isinstance(obj, Course):
             course = obj
@@ -54,22 +52,22 @@ class IsEnrolled(permissions.BasePermission):
 
     # perms.py (Code này đã có trong file của bạn, chỉ cần đảm bảo giữ nguyên logic này)
 
-    class IsEnrolled(permissions.BasePermission):
-        message = "Bạn chưa đăng ký khóa học này."
-
-        def has_object_permission(self, request, view, obj):
-            # ... (check login)
-
-            # Logic tìm khóa học từ bài học
-            course = None
-            if isinstance(obj, Lesson):
-                course = obj.chapter.course  # <--- Quan trọng: Từ Lesson tìm ra Course
-            # ... (các trường hợp khác)
-
-            # ... (check giảng viên/admin)
-
-            # Kiểm tra bảng Enrollment
-            return Enrollment.objects.filter(user=request.user, course=course).exists()
+# class IsEnrolled(permissions.BasePermission):
+#     message = "Bạn chưa đăng ký khóa học này."
+#
+#     def has_object_permission(self, request, view, obj):
+#         # ... (check login)
+#
+#         # Logic tìm khóa học từ bài học
+#         course = None
+#         if isinstance(obj, Lesson):
+#             course = obj.course  # <--- Quan trọng: Từ Lesson tìm ra Course
+#         # ... (các trường hợp khác)
+#
+#         # ... (check giảng viên/admin)
+#
+#         # Kiểm tra bảng Enrollment
+#         return Enrollment.objects.filter(user=request.user, course=course).exists()
 
 
 class IsCourseOwner(permissions.BasePermission):
@@ -89,12 +87,19 @@ class IsCourseOwner(permissions.BasePermission):
         if isinstance(obj, Course):
             return obj.instructor == request.user
 
-        # Nếu obj là Chapter -> check course.instructor
-        if isinstance(obj, Chapter):
-            return obj.course.instructor == request.user
 
         # Nếu obj là Lesson -> check chapter.course.instructor
         if isinstance(obj, Lesson):
-            return obj.chapter.course.instructor == request.user
+            return obj.course.instructor == request.user
 
         return False
+
+class IsTeacher(BasePermission):
+    """
+    Chỉ cho phép user có role là 'teacher' truy cập.
+    """
+    message = "Bạn phải là tài khoản Giảng viên mới có quyền thực hiện hành động này."
+
+    def has_permission(self, request, view):
+        # 2. Kiểm tra role có phải là TEACHER không
+        return request.user.role == RoleChoice.TEACHER

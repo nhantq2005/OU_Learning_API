@@ -11,25 +11,18 @@ class RoleChoice(models.TextChoices):
 
 class GenderChoice(models.TextChoices):
     MALE = 'male', 'Nam'
-    STUDENT = 'female', 'Nữ'
+    FEMALE = 'female', 'Nữ'
 
 
 class User(AbstractUser):
     gender = models.CharField(choices=GenderChoice.choices, max_length=10, null=True)
     role = models.CharField(max_length=10, choices=RoleChoice.choices)
-    is_verified = models.BooleanField(default=True)
     avatar = CloudinaryField(null=True)
-
-
-class StatusChoice(models.TextChoices):
-    PENDING = 'pending', 'Đang xử lý'
-    APPROVED = 'approved', 'Chấp nhận'
-    REJECTED = 'rejected', 'Từ chối'
 
 
 class InstructorProfile(models.Model):
     document = CloudinaryField(null=False)
-    status = models.CharField(max_length=20, choices=StatusChoice.choices, default=StatusChoice.PENDING)
+    # status = models.CharField(max_length=20, choices=StatusChoice.choices, default=StatusChoice.PENDING)
     bank_account = models.CharField(max_length=50, null=True)
     expertise = models.CharField(max_length=255)
     # MỐI QUAN HỆ
@@ -61,7 +54,7 @@ class Tag(models.Model):
         return self.name
 
 
-class Course(models.Model):
+class Course(BaseModel):
     title = models.CharField(max_length=255)
     description = models.TextField(null=False)
     price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -75,7 +68,7 @@ class Course(models.Model):
 
     class Meta:
         unique_together = ('title', 'category')
-        ordering = ['-id']
+        ordering = ['-created_date']
 
 
     def __str__(self):
@@ -88,7 +81,7 @@ class EnrollmentStatus(models.TextChoices):
     COMPLETED = "completed", "Hoàn thành"
 
 
-class Enrollment(models.Model):
+class Enrollment(BaseModel):
     enrolled_date = models.DateTimeField(auto_now_add=True)
     process_percent = models.FloatField(default=0)
     status = models.CharField(max_length=20, choices=EnrollmentStatus.choices, default=EnrollmentStatus.NOT_STARTED)
@@ -96,18 +89,11 @@ class Enrollment(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     course = models.ForeignKey(Course, null=True, on_delete=models.SET_NULL)
 
-
-class Chapter(models.Model):
-    title = models.CharField(max_length=255)
-    # MỐI QUAN HỆ
-    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='chapters')
+    def __str__(self):
+        return self.user.username
 
     class Meta:
-        unique_together = ('title', 'course')
-        ordering = ['title']
-
-    def __str__(self):
-        return self.title
+        unique_together = ('user', 'course')
 
 
 class Lesson(models.Model):
@@ -116,11 +102,12 @@ class Lesson(models.Model):
     thumbnail = CloudinaryField(null=False)
     video = CloudinaryField(resource_type="video", null=False)
     active = models.BooleanField(default=True)
+    duration = models.IntegerField(null=True)
     # MỐI QUAN HỆ
-    chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='lessons')
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='lessons')
 
     class Meta:
-        unique_together = ('name', 'chapter')
+        unique_together = ('name', 'course')
         ordering = ['name']
 
     def __str__(self):
@@ -152,6 +139,21 @@ class Like(Interaction):
 
 # MỞ RỘNG
 
+class TransactionStatus(models.TextChoices):
+    PENDING = "pending", "Đang chờ thanh toán"
+    SUCCESS = "success", "Thanh toán thành công"
+    FAILED = "failed", "Thanh toán thất bại"
+    CANCELED = "canceled", "Đã hủy"
 
-# class Transaction(models.Model):
-#     pass
+class Transaction(Interaction):
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True
+    )  # Giá khóa học tại thời điểm mua
+
+    status = models.CharField(
+        max_length=20,
+        choices=TransactionStatus.choices,
+        default=TransactionStatus.PENDING, null=True
+    )
