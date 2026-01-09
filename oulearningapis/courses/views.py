@@ -31,16 +31,21 @@ class UserView(viewsets.ViewSet, generics.CreateAPIView):
         serializer = CourseSerializer(courses, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @action(methods=['get'], detail=False, url_path='enrolled-courses')
+    @action(methods=['get'], detail=False, url_path='enrolled-courses',
+            permission_classes=[permissions.IsAuthenticated])
     def enrolled_courses(self, request):
         user = request.user
 
+        # Lấy danh sách khóa học
         courses = Course.objects.filter(
-            enrollments__user=user,
+            enrollment__user=user,
             active=True
         ).distinct()
 
-        serializer = CourseSerializer(courses, many=True)
+        # SỬA TẠI ĐÂY: Dùng trực tiếp CourseSerializer thay vì self.get_serializer()
+        # self.get_serializer() sẽ trả về UserSerializer (sai với dữ liệu Course)
+        serializer = serializers.CourseSerializer(courses, many=True)
+
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -97,14 +102,9 @@ class CourseView(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView,
         return serializers.CourseDetailSerializer
 
         # 2. ADD THIS: Automatically assign the current user as instructor
-        # def perform_create(self, serializer):
-        #     serializer.save(instructor=self.request.user)
+    def perform_create(self, serializer):
+        serializer.save(instructor=self.request.user)
 
-    # # KIỂM TRA QUYỀN
-    # def get_permissions(self):
-    #
-    #
-    #     return [AllowAny()]
 
     def get_permissions(self):
 
@@ -125,13 +125,13 @@ class CourseView(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView,
 
 
         if self.action == 'get_lessons':
-            return [permissions.IsAuthenticated(), perms.IsCourseOwner()]
+            return [permissions.IsAuthenticated(), perms.IsEnrolled()]
 
         return [permissions.AllowAny()]
 
     # QUAN TRỌNG: Gán người tạo là instructor
-    def perform_create(self, serializer):
-        serializer.save(instructor=self.request.user)
+    # def create(self, serializer):
+    #     serializer.save(instructor=self.request.user)
 
     def get_queryset(self):
         query = self.queryset
@@ -192,7 +192,12 @@ class CourseView(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView,
             s.is_valid(raise_exception=True)
             s.save(user=request.user, course=course)
             return Response(s.data, status=status.HTTP_201_CREATED)
-        lessons = course.lessons.filter(active=True)
+
+        user = self.request.user
+        if user.is_authenticated and getattr(user, 'role', '')=='teacher':
+            lessons = course.lessons.all()
+        else:
+            lessons = course.lessons.filter(active=True)
         return Response(serializers.LessonSerializer(lessons, many=True).data, status=status.HTTP_200_OK)
 
 
@@ -224,8 +229,14 @@ class CourseView(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView,
 
 
 class LessonView(viewsets.ViewSet, generics.RetrieveAPIView, generics.DestroyAPIView, generics.UpdateAPIView):
-    queryset = Lesson.objects.filter(active=True)
+    # queryset = Lesson.objects.filter(active=True)
     serializer_class = serializers.LessonSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        if self.request.user.is_authenticated and getattr(user, 'role', '')=='teacher':
+            return Lesson.objects.all()
+        return Lesson.objects.filter(active=True)
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
