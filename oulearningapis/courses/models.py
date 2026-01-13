@@ -137,7 +137,15 @@ class Like(Interaction):
     class Meta:
         unique_together = ('course', 'user')
 
-# MỞ RỘNG
+class LessonCompleted(BaseModel):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('lesson', 'user')
+
+    def __str__(self):
+        return f"{self.user.username} - {self.lesson.name}"
 
 class TransactionStatus(models.TextChoices):
     PENDING = "pending", "Đang chờ thanh toán"
@@ -157,3 +165,6 @@ class Transaction(Interaction):
         choices=TransactionStatus.choices,
         default=TransactionStatus.PENDING, null=True
     )
+
+    def __str__(self):
+        return self.amount.__str__()

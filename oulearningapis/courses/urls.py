@@ -13,8 +13,10 @@ r.register('reviews', views.ReviewView, basename='review')
 r.register('users', views.UserView, basename='user')
 r.register('enrollments', views.EnrollmentView, basename='enrollment')
 r.register('instructors', views.InstructorView, basename='instructor')
-
+r.register('transactions', views.TransactionView, basename='transaction')
 
 urlpatterns = [
-    path('', include(r.urls))
+    path('', include(r.urls)),
+    path('stats/dashboard/', views.TeacherDashboardStatsView.as_view(), name='stats-dashboard'),
+
 ]

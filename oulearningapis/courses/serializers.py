@@ -1,7 +1,8 @@
-from django.db.models import Avg
+from django.db.models import Avg, Sum
 from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
-from courses.models import Category, Course, Tag, Enrollment, Lesson, Review, User, InstructorProfile
+from courses.models import Category, Course, Tag, Enrollment, Lesson, Review, User, InstructorProfile, Transaction, \
+    LessonCompleted
 from rest_framework.exceptions import ValidationError
 
 
@@ -12,7 +13,6 @@ class UserInfoSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-
     def create(self, validated_data):
         user = User(**validated_data)
         user.set_password(user.password)
@@ -88,7 +88,7 @@ class LessonSerializer(serializers.ModelSerializer):
 class LessonDetailSerializer(LessonSerializer):
     class Meta:
         model = LessonSerializer.Meta.model
-        fields = LessonSerializer.Meta.fields + ['video', 'description']  # COURSE
+        fields = LessonSerializer.Meta.fields + ['video', 'description', 'duration']  # COURSE
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -107,16 +107,18 @@ class LessonDetailSerializer(LessonSerializer):
 
 
 class CourseSerializer(ImageSerializer):
-    avg_rating = serializers.SerializerMethodField()
+    # CHỈNH LẠI AVG_RATING _______
+    # avg_rating = serializers.SerializerMethodField()
+    avg_rating = serializers.FloatField(read_only=True)
+    total_duration = serializers.IntegerField(read_only=True)
 
-    def get_avg_rating(self, obj):
-        result = obj.review_set.aggregate(Avg('rating'))
-        rating = result['rating__avg']
-
-        # Nếu có rating thì làm tròn, nếu None thì trả về 0
-        if rating:
-            return round(rating, 1)
-        return 0
+    # def get_avg_rating(self, obj):
+    #     result = obj.review_set.aggregate(Avg('rating'))
+    #     rating = result['rating__avg']
+    #
+    #     if rating:
+    #         return round(rating, 1)
+    #     return 0
 
     tags = TagSerializer(many=True, read_only=True)
     instructor = UserInfoSerializer(read_only=True)
@@ -151,7 +153,7 @@ class CourseSerializer(ImageSerializer):
     class Meta:
         model = Course
         fields = ['id', 'title', 'price', 'image', 'category', 'tags', 'instructor', 'category_id', 'tags_id',
-                  'instructor_id', 'avg_rating', 'active']
+                  'instructor_id', 'avg_rating', 'active','total_duration']
 
     #
     # def create(self, validated_data):
@@ -232,10 +234,6 @@ class EnrollmentSerializer(serializers.ModelSerializer):
         )
     ]
 
-    # def create(self, validated_data):
-    #     user = self.context['request'].user
-    #     return Enrollment.objects.create(user=user, **validated_data)
-
 
 class EnrollmentDetailSerializer(EnrollmentSerializer):
     course = CourseSerializer(read_only=True)
@@ -243,3 +241,44 @@ class EnrollmentDetailSerializer(EnrollmentSerializer):
     class Meta:
         model = Enrollment
         fields = EnrollmentSerializer.Meta.fields + ['enrolled_date', 'process_percent', 'status', 'course']
+
+
+class TransactionSerializer(serializers.ModelSerializer):
+    # user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    user_info = UserInfoSerializer(read_only=True)
+    class Meta:
+        model = Transaction
+        fields = ['created_date','user_info','amount', 'status', 'course']
+
+
+
+class StudentProgressSerializer(serializers.ModelSerializer):
+    process_percent = serializers.SerializerMethodField()
+    # Field này lấy trực tiếp từ annotate ở View, khai báo để hiện ra JSON
+    completed_count = serializers.IntegerField(read_only=True)
+
+
+    def get_process_percent(self, user):
+        # 1. Lấy tổng số bài học từ context (được truyền từ View)
+        total_lessons = self.context.get('total_lessons', 0)
+
+        if total_lessons == 0:
+            return 0.0
+
+        # 2. Lấy số bài đã học từ field annotate 'completed_count'
+        # getattr giúp tránh lỗi nếu quên annotate ở view
+        completed = getattr(user, 'completed_count', 0)
+
+        # 3. Tính phần trăm
+        return round((completed / total_lessons) * 100, 2)
+
+    class Meta:
+        model = User
+        fields = ['id', 'first_name', 'last_name', 'avatar', 'email',
+                  'process_percent', 'completed_count']
+
+
+class LessonCompletedSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LessonCompleted
+        fields = '__all__'

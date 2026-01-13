@@ -1,9 +1,13 @@
+import json
+
 from django.contrib import admin
-from django.db.models import Count
+from django.contrib.admin.views.decorators import staff_member_required
+from django.db.models import Count, Sum
+from django.shortcuts import render
 from django.template.response import TemplateResponse
 from django.urls import path
 from django.utils.safestring import mark_safe
-from courses.models import Category, Course, Lesson, Tag, Review, Enrollment, User
+from courses.models import Category, Course, Lesson, Tag, Review, Enrollment, User, Transaction, TransactionStatus
 from django import forms
 # from django.contrib import admin
 from django.core.mail import send_mail
@@ -108,6 +112,73 @@ class EnrollmentAdmin(admin.ModelAdmin):
     list_select_related = ['user', 'course']
 
 
+
+#
+# @staff_member_required
+# def admin_stats_view(request):
+#     # --- 1. SỐ LIỆU TỔNG QUAN (SUMMARY) ---
+#     total_courses = Course.objects.count()
+#
+#     # Đếm học viên (distinct user trong enrollment)
+#     total_students = Enrollment.objects.values('user').distinct().count()
+#
+#     # Tổng doanh thu (Chỉ tính giao dịch thành công)
+#     revenue_agg = Transaction.objects.filter(
+#         status=TransactionStatus.SUCCESS
+#     ).aggregate(total=Sum('amount'))
+#     total_revenue = revenue_agg['total'] or 0
+#
+#     # --- 2. SỐ LIỆU BIỂU ĐỒ (CHART DATA) ---
+#     # Lấy top 5 khóa học doanh thu cao nhất
+#     top_courses = Course.objects.annotate(
+#         revenue=Sum(
+#             'transaction__amount',
+#             filter=Q(transaction__status=TransactionStatus.SUCCESS)
+#         )
+#     ).exclude(revenue=None).order_by('-revenue')[:5]  # Lấy top 5
+#
+#     # Chuẩn bị dữ liệu để đẩy xuống ChartJS
+#     # Cần convert sang list để dùng json.dumps
+#     chart_labels = []
+#     chart_values = []
+#
+#     for course in top_courses:
+#         chart_labels.append(course.title)
+#         chart_values.append(float(course.revenue))  # Convert Decimal sang float
+#
+#     # --- 3. GIAO DỊCH GẦN ĐÂY (TABLE) ---
+#     recent_transactions = Transaction.objects.select_related('user', 'course').order_by('-created_date')[:5]
+#
+#     context = {
+#         # Số liệu hiển thị trực tiếp
+#         "total_courses": total_courses,
+#         "total_students": total_students,
+#         "total_revenue": total_revenue,
+#         "recent_transactions": recent_transactions,
+#
+#         # Dữ liệu Chart (Chuyển sang JSON string để JS đọc được)
+#         "chart_labels_json": json.dumps(chart_labels),
+#         "chart_data_json": json.dumps(chart_values),
+#
+#         **admin.site.each_context(request),
+#         "title": "Thống kê hệ thống"
+#     }
+#
+#     return render(request, 'templates/stats.html', context)
+#
+#
+#
+# @admin.register(StatsDashboard)
+# class StatsDashboardAdmin(admin.ModelAdmin):
+#     # Ghi đè hàm changelist_view để khi bấm vào menu nó chạy view thống kê
+#     def changelist_view(self, request, extra_context=None):
+#         return admin_stats_view(request)
+#
+#     # Ẩn các nút thêm/sửa/xóa
+#     def has_add_permission(self, request): return False
+#     def has_change_permission(self, request, obj=None): return False
+#     def has_delete_permission(self, request, obj=None): return False
+
 admin.site.register(Enrollment, EnrollmentAdmin)
 
 admin.site.register(User, UserAdmin)
@@ -117,3 +188,4 @@ admin.site.register(Tag)
 admin.site.register(Course)
 admin.site.register(Lesson)
 admin.site.register(Review)
+admin.site.register(Transaction)

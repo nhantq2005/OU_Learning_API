@@ -43,11 +43,21 @@ INSTALLED_APPS = [
     'corsheaders',
     'oauth2_provider',
     # ------------
-
+    # 'django.contrib.humanize',
+    'rest_framework.authtoken',
+    'dj_rest_auth',
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'dj_rest_auth.registration',
+    'allauth.socialaccount.providers.google',
 ]
 
+SITE_ID = 1
+
 MIDDLEWARE = [
-'django.middleware.security.SecurityMiddleware',
+    'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',  # Bật cái này lên vì bạn có dùng corsheaders
     'django.middleware.common.CommonMiddleware',
@@ -56,7 +66,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'debug_toolbar.middleware.DebugToolbarMiddleware',
-    'courses.middleware.OAuth2LoginMiddleware'
+    'courses.middleware.OAuth2LoginMiddleware',
+'allauth.account.middleware.AccountMiddleware',
 
 ]
 
@@ -93,7 +104,23 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
+        'dj_rest_auth.jwt_auth.JWTCookieAuthentication',
     )
+}
+
+REST_USE_JWT = True
+JWT_AUTH_COOKIE = 'my-app-auth'
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        }
+    }
 }
 
 # Database
@@ -104,7 +131,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'oulearningdb',
         'USER': 'root',
-        'PASSWORD': 'quocnhan2005',
+        'PASSWORD': '',
         'HOST': ''  # mặc định localhost
     }
 }
@@ -120,9 +147,9 @@ import cloudinary.uploader
 import cloudinary.api
 
 cloudinary.config(
-    cloud_name='duk4u0tsp',
-    api_key='169233679562821',
-    api_secret='1as0RHa0xZv-7VrWx_ltUJ2Tgs4'
+    cloud_name='',
+    api_key='',
+    api_secret=''
 )
 
 # Password validation
@@ -164,8 +191,7 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
-#MAIL
+# MAIL
 # settings.py
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -173,5 +199,5 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 # Thay bằng email và mật khẩu ứng dụng (App Password) của bạn
-EMAIL_HOST_USER = 'nhan.tq2005@gmail.com'
-EMAIL_HOST_PASSWORD = 'tloi pscy lhzf bwwu'
+EMAIL_HOST_USER = ''
+EMAIL_HOST_PASSWORD = ''
