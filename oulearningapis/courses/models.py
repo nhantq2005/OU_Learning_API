@@ -25,7 +25,7 @@ class InstructorProfile(models.Model):
     # status = models.CharField(max_length=20, choices=StatusChoice.choices, default=StatusChoice.PENDING)
     bank_account = models.CharField(max_length=50, null=True)
     expertise = models.CharField(max_length=255)
-    # MỐI QUAN HỆ
+
     user = models.OneToOneField(User, on_delete=models.CASCADE)
 
 
@@ -61,7 +61,7 @@ class Course(BaseModel):
     intro_video = CloudinaryField(resource_type="video", null=False)
     active = models.BooleanField(default=True)
     image = CloudinaryField(null=False)
-    # MỐI QUAN HỆ
+
     instructor = models.ForeignKey(User, on_delete=models.PROTECT)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)
     tags = models.ManyToManyField(Tag, blank=True)
@@ -85,7 +85,7 @@ class Enrollment(BaseModel):
     enrolled_date = models.DateTimeField(auto_now_add=True)
     process_percent = models.FloatField(default=0)
     status = models.CharField(max_length=20, choices=EnrollmentStatus.choices, default=EnrollmentStatus.NOT_STARTED)
-    # MỐI QUAN HỆ
+
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     course = models.ForeignKey(Course, null=True, on_delete=models.SET_NULL)
 
@@ -103,7 +103,7 @@ class Lesson(models.Model):
     video = CloudinaryField(resource_type="video", null=False)
     active = models.BooleanField(default=True)
     duration = models.IntegerField(null=True)
-    # MỐI QUAN HỆ
+
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='lessons')
 
     class Meta:
@@ -158,7 +158,7 @@ class Transaction(Interaction):
         max_digits=12,
         decimal_places=2,
         null=True
-    )  # Giá khóa học tại thời điểm mua
+    )
 
     status = models.CharField(
         max_length=20,

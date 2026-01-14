@@ -4,6 +4,8 @@ from rest_framework import routers
 from . import views
 from rest_framework.routers import DefaultRouter
 
+from .views import GoogleLogin
+
 r = routers.DefaultRouter()
 r.register('categories', views.CategoryView, basename='category')
 r.register('courses', views.CourseView, basename='course')
@@ -18,5 +20,6 @@ r.register('transactions', views.TransactionView, basename='transaction')
 urlpatterns = [
     path('', include(r.urls)),
     path('stats/dashboard/', views.TeacherDashboardStatsView.as_view(), name='stats-dashboard'),
+    path('auth/google/', GoogleLogin.as_view(), name='google_login'),
 
 ]

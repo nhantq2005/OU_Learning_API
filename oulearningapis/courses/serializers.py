@@ -84,7 +84,6 @@ class LessonSerializer(serializers.ModelSerializer):
         return data
 
 
-# LẤY CHI TIẾT BÀI HỌC
 class LessonDetailSerializer(LessonSerializer):
     class Meta:
         model = LessonSerializer.Meta.model
@@ -98,8 +97,6 @@ class LessonDetailSerializer(LessonSerializer):
         return data
 
     def create(self, validated_data):
-        # Loại bỏ trường 'user' nếu nó tồn tại trong validated_data
-        # để tránh lỗi TypeError khi gọi Lesson.objects.create()
         # XEM KỸ
         validated_data.pop('user', None)
 
@@ -107,18 +104,8 @@ class LessonDetailSerializer(LessonSerializer):
 
 
 class CourseSerializer(ImageSerializer):
-    # CHỈNH LẠI AVG_RATING _______
-    # avg_rating = serializers.SerializerMethodField()
     avg_rating = serializers.FloatField(read_only=True)
     total_duration = serializers.IntegerField(read_only=True)
-
-    # def get_avg_rating(self, obj):
-    #     result = obj.review_set.aggregate(Avg('rating'))
-    #     rating = result['rating__avg']
-    #
-    #     if rating:
-    #         return round(rating, 1)
-    #     return 0
 
     tags = TagSerializer(many=True, read_only=True)
     instructor = UserInfoSerializer(read_only=True)
@@ -126,60 +113,38 @@ class CourseSerializer(ImageSerializer):
 
     category_id = serializers.PrimaryKeyRelatedField(
         queryset=Category.objects.all(),
-        source='category',  # Map vào field 'category' trong Model
-        write_only=True  # Chỉ dùng khi gửi lên, không hiện khi trả về
+        source='category',
+        write_only=True
     )
 
     tags_id = serializers.PrimaryKeyRelatedField(
         queryset=Tag.objects.all(),
-        source='tags',  # Kết nối với field 'tags' trong Model Lesson
-        many=True,  # Quan trọng: Cho phép gửi nhiều ID
+        source='tags',
+        many=True,
         write_only=True
     )
 
     instructor_id = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.all(),
-        source='instructor',  # Kết nối với field 'tags' trong Model Lesson  # Quan trọng: Cho phép gửi nhiều ID
+        source='instructor',
         write_only=True
     )
-
-    # def to_representation(self, instance):
-    #     data = super().to_representation(instance)
-    #     if instance.image:
-    #         data['image'] = instance.image.url
-    #
-    #     return data
 
     class Meta:
         model = Course
         fields = ['id', 'title', 'price', 'image', 'category', 'tags', 'instructor', 'category_id', 'tags_id',
                   'instructor_id', 'avg_rating', 'active','total_duration']
 
-    #
-    # def create(self, validated_data):
-    #     # 1. Tách dữ liệu nested ra khỏi validated_data
-    #     tags_data = validated_data.pop('tags')
-    #
-    #     # 4. Xử lý Tags: Lấy cái đã có hoặc tạo mới rồi add vào course
-    #     for tag_data in tags_data:
-    #         tag_obj, _ = Tag.objects.get_or_create(**tag_data)
-    #         course.tags.add(tag_obj)
-    #
-    #     return course
-
 
 class CourseDetailSerializer(CourseSerializer):
-    # 1. Khai báo thêm trường is_enrolled
     is_enrolled = serializers.SerializerMethodField()
 
     def get_is_enrolled(self, obj):
         request = self.context.get('request')
 
-        # 1. Kiểm tra request và user hợp lệ
         if not request or not request.user.is_authenticated:
             return False
 
-        # 2. Truy vấn trực tiếp từ bảng Enrollment (Sạch và nhanh hơn)
         return Enrollment.objects.filter(
             user=request.user,
             course=obj
@@ -198,13 +163,11 @@ class CourseDetailSerializer(CourseSerializer):
 
 
 class ReviewSerializer(serializers.ModelSerializer):
-    # Serializer để hiển thị thông tin user đầy đủ (Avatar, Tên) thay vì chỉ hiện ID
     user = UserInfoSerializer(read_only=True)
 
     class Meta:
         model = Review
         fields = ['id', 'rating', 'comment', 'created_date', 'user', 'course']
-        # Đặt course là read_only vì ta lấy từ URL, không lấy từ body JSON
         read_only_fields = ['user', 'course', 'created_date']
 
 
@@ -218,7 +181,6 @@ class ReviewDetailSerializer(ReviewSerializer):
 
 
 class EnrollmentSerializer(serializers.ModelSerializer):
-    # 1. Tự động lấy user đang login, ẩn khỏi form nhập liệu
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
 
@@ -254,22 +216,16 @@ class TransactionSerializer(serializers.ModelSerializer):
 
 class StudentProgressSerializer(serializers.ModelSerializer):
     process_percent = serializers.SerializerMethodField()
-    # Field này lấy trực tiếp từ annotate ở View, khai báo để hiện ra JSON
     completed_count = serializers.IntegerField(read_only=True)
 
-
     def get_process_percent(self, user):
-        # 1. Lấy tổng số bài học từ context (được truyền từ View)
         total_lessons = self.context.get('total_lessons', 0)
 
         if total_lessons == 0:
             return 0.0
 
-        # 2. Lấy số bài đã học từ field annotate 'completed_count'
-        # getattr giúp tránh lỗi nếu quên annotate ở view
         completed = getattr(user, 'completed_count', 0)
 
-        # 3. Tính phần trăm
         return round((completed / total_lessons) * 100, 2)
 
     class Meta:

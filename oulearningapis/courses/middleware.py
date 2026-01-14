@@ -11,7 +11,6 @@ class OAuth2LoginMiddleware:
     def __call__(self, request):
         load_dotenv()
         if request.path == '/api/login/' and request.method == 'POST':
-            # Nếu client gửi JSON
             try:
                 data_in = json.loads(request.body)
                 username = data_in.get('username')
@@ -32,12 +31,10 @@ class OAuth2LoginMiddleware:
                 'grant_type': 'password'
             }
 
-            # Log dữ liệu gửi lên
             print("DATA gửi lên /o/token/:", data)
 
             response = requests.post('http://localhost:8000/o/token/', data=data)
 
-            # Log phản hồi từ /o/token/
             print("RESPONSE từ /o/token/:", response.status_code, response.text)
 
             if response.status_code == 200:
