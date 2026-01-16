@@ -1,4 +1,4 @@
-from django.db.models import Sum, Q, Avg, Count
+from django.db.models import Sum, Q, Avg, Count, Exists, OuterRef, Value, BooleanField
 from django.db.models.functions import Coalesce
 from rest_framework import viewsets, generics, status, permissions, parsers
 from rest_framework.views import APIView
@@ -9,7 +9,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
-from courses.paginator import ReviewPagination, LessonPagination, CoursePagination
+from courses.paginator import ReviewPagination, LessonPagination, CoursePagination, TransactionPagination
 from courses.serializers import CourseSerializer, UserInfoSerializer, EnrollmentSerializer, EnrollmentDetailSerializer, \
     TransactionSerializer, StudentProgressSerializer
 from rest_framework import filters
@@ -22,7 +22,6 @@ class UserView(viewsets.ViewSet, generics.CreateAPIView):
     queryset = User.objects.filter(is_active=True)
     serializer_class = serializers.UserSerializer
     parser_classes = [parsers.MultiPartParser]
-    pagination_class = CoursePagination
 
     @action(methods=['get', 'patch'], url_path='current-user', detail=False,
             permission_classes=[perms.IsAuthenticated])
@@ -35,10 +34,17 @@ class UserView(viewsets.ViewSet, generics.CreateAPIView):
 
         return Response(serializers.UserInfoSerializer(user).data, status=status.HTTP_200_OK)
 
-    @action(methods=['get'], url_path='courses', detail=True)
+    @action(methods=['get'], url_path='courses', detail=True, permission_classes=[permissions.IsAuthenticated])
     def get_course_list(self, request, pk=None):
         user = self.get_object()
         courses = Course.objects.filter(instructor=user)
+        paginator = CoursePagination()
+        page = paginator.paginate_queryset(courses, request, view=self)
+
+        if page is not None:
+            serializer = serializers.CourseSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+
         serializer = CourseSerializer(courses, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -132,7 +138,7 @@ class CourseView(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView,
         if self.action == 'create':
             return [permissions.IsAuthenticated(), perms.IsTeacher()]
 
-        if self.action in ['update', 'partial_update', 'destroy', 'hide_course', 'unhide_course','students']:
+        if self.action in ['update', 'partial_update', 'destroy', 'hide_course', 'unhide_course', 'students']:
             return [permissions.IsAuthenticated(), perms.IsCourseOwner()]
 
         if self.action == 'get_lessons':
@@ -144,8 +150,9 @@ class CourseView(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView,
         query = self.queryset
         user = self.request.user
 
-        if getattr(user, 'role', '')!= 'teacher':
+        if getattr(user, 'role', '') != 'teacher':
             query = query.filter(active=True)
+
         q = self.request.query_params.get('q')
         if q:
             query = query.filter(title__icontains=q)
@@ -169,6 +176,12 @@ class CourseView(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView,
 
         return query
 
+    @action(methods=['get'], detail=False, url_path='random')
+    def get_random_courses(self, request):
+        random_courses = self.queryset.filter(active=True).order_by('?')[:5]
+        serializer = serializers.CourseSerializer(random_courses, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     @action(methods=['get', 'post'], detail=True, url_path='reviews')
     def get_reviews(self, request, pk):
         course = self.get_object()
@@ -180,7 +193,6 @@ class CourseView(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView,
                     status=status.HTTP_403_FORBIDDEN
                 )
             s = serializers.ReviewSerializer(data=request.data)
-
             s.is_valid(raise_exception=True)
             s.save(user=request.user, course=self.get_object())
 
@@ -195,7 +207,6 @@ class CourseView(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView,
             serializer = serializers.ReviewSerializer(page, many=True)
             return paginator.get_paginated_response(serializer.data)
 
-
         return Response(serializers.ReviewSerializer(reviews, many=True).data, status=status.HTTP_200_OK)
 
     @action(methods=['get', 'post'], detail=True, url_path='lessons')
@@ -209,9 +220,18 @@ class CourseView(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView,
 
         user = self.request.user
         if user.is_authenticated and getattr(user, 'role', '') == 'teacher':
-            lessons = course.lessons.all()
+            lessons = course.lessons.annotate(
+                is_done=Value(False, output_field=BooleanField())
+            ).all()
         else:
-            lessons = course.lessons.filter(active=True)
+            lessons = course.lessons.annotate(
+                is_done=Exists(
+                    LessonCompleted.objects.filter(
+                        lesson=OuterRef('pk'),
+                        user=user
+                    )
+                )
+            ).filter(active=True)
 
         paginator = LessonPagination()
 
@@ -255,12 +275,7 @@ class CourseView(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView,
             )
         )
 
-        serializer = serializers.StudentProgressSerializer(
-            users,
-            many=True,
-            context={'total_lessons': total_lessons}
-        )
-
+        serializer = serializers.StudentProgressSerializer(users,many=True, context={'total_lessons': total_lessons})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -270,9 +285,20 @@ class LessonView(viewsets.ViewSet, generics.RetrieveAPIView, generics.DestroyAPI
 
     def get_queryset(self):
         user = self.request.user
+        query = Lesson.objects
         if self.request.user.is_authenticated and getattr(user, 'role', '') == 'teacher':
-            return Lesson.objects.all()
-        return Lesson.objects.filter(active=True)
+            return query.annotate(
+                is_done=Value(False, output_field=BooleanField())
+            ).all()
+        return query.annotate(
+            is_done=Exists(
+                LessonCompleted.objects.filter(
+                    lesson=OuterRef('pk'),
+                    user=user
+                )
+            )
+        ).filter(active=True)
+        return query.filter(active=True)
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -328,11 +354,10 @@ class LessonView(viewsets.ViewSet, generics.RetrieveAPIView, generics.DestroyAPI
             enrollment = Enrollment.objects.get(user=user, course=course)
             enrollment.process_percent = percent
 
-            if percent >= 100:
+            if percent == 100:
                 enrollment.status = EnrollmentStatus.COMPLETED
             elif percent > 0 and enrollment.status == EnrollmentStatus.NOT_STARTED:
                 enrollment.status = EnrollmentStatus.ENROLLED
-
             enrollment.save()
         except Enrollment.DoesNotExist:
             pass
@@ -368,6 +393,7 @@ class EnrollmentView(viewsets.ViewSet, generics.CreateAPIView, generics.ListAPIV
 class TransactionView(viewsets.ViewSet, generics.CreateAPIView, generics.ListAPIView):
     queryset = Transaction.objects.all()
     serializer_class = serializers.TransactionSerializer
+    pagination_class = TransactionPagination
 
     def get_permissions(self):
         return [permissions.IsAuthenticated()]
@@ -377,7 +403,7 @@ class TransactionView(viewsets.ViewSet, generics.CreateAPIView, generics.ListAPI
 
 
 class TeacherDashboardStatsView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, perms.IsTeacher]
 
     def get(self, request):
         user = request.user
@@ -426,5 +452,5 @@ class TeacherDashboardStatsView(APIView):
 
 class GoogleLogin(SocialLoginView):
     adapter_class = GoogleOAuth2Adapter
-    callback_url = "http://localhost:8000/accounts/google/login/callback/"
+    callback_url = "http://192.168.113.103:8000/accounts/google/login/callback/"
     client_class = OAuth2Client

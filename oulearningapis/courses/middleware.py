@@ -16,7 +16,6 @@ class OAuth2LoginMiddleware:
                 username = data_in.get('username')
                 password = data_in.get('password')
             except Exception:
-                # Nếu gửi form
                 username = request.POST.get('username')
                 password = request.POST.get('password')
 
@@ -31,7 +30,7 @@ class OAuth2LoginMiddleware:
                 'grant_type': 'password'
             }
 
-            print("DATA gửi lên /o/token/:", data)
+            print("DATA gửi lên:", data)
 
             response = requests.post('http://localhost:8000/o/token/', data=data)
 

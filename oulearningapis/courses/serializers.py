@@ -11,6 +11,13 @@ class UserInfoSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'first_name', 'last_name', 'gender', 'avatar', 'role', 'is_active', 'email']
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.avatar:
+            data['avatar'] = instance.avatar.url
+
+        return data
+
 
 class UserSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
@@ -23,8 +30,8 @@ class UserSerializer(serializers.ModelSerializer):
         keys = set(validated_data.keys())
         if keys - {'first_name', 'last_name', 'email'}:
             raise ValidationError({'error': 'Invalid fields'})
-
         return super().update(instance, validated_data)
+
 
     class Meta:
         model = User
@@ -35,6 +42,17 @@ class UserSerializer(serializers.ModelSerializer):
                 'write_only': True
             }
         }
+
+    def to_representation(self, instance):
+        if not instance.avatar:
+            return ''
+        data = super().to_representation(instance)
+        if instance.avatar:
+            data['avatar'] = instance.avatar.url
+
+        return data
+
+
 
 
 class IntructorProfileSerializer(serializers.ModelSerializer):
@@ -72,9 +90,11 @@ class TagSerializer(serializers.ModelSerializer):
 
 
 class LessonSerializer(serializers.ModelSerializer):
+    is_done = serializers.BooleanField(read_only=True)
+
     class Meta:
         model = Lesson
-        fields = ['id', 'name', 'thumbnail', 'active']
+        fields = ['id', 'name', 'thumbnail', 'active', 'is_done']
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -97,7 +117,6 @@ class LessonDetailSerializer(LessonSerializer):
         return data
 
     def create(self, validated_data):
-        # XEM KỸ
         validated_data.pop('user', None)
 
         return super().create(validated_data)
@@ -206,7 +225,6 @@ class EnrollmentDetailSerializer(EnrollmentSerializer):
 
 
 class TransactionSerializer(serializers.ModelSerializer):
-    # user = serializers.HiddenField(default=serializers.CurrentUserDefault())
     user_info = UserInfoSerializer(read_only=True)
     class Meta:
         model = Transaction
@@ -232,6 +250,13 @@ class StudentProgressSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'first_name', 'last_name', 'avatar', 'email',
                   'process_percent', 'completed_count']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.avatar:
+            data['avatar'] = instance.avatar.url
+
+        return data
 
 
 class LessonCompletedSerializer(serializers.ModelSerializer):

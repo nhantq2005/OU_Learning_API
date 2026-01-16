@@ -13,18 +13,14 @@ class HasLearnedCourse(BasePermission):
     def has_permission(self, request, view):
         if request.method != "POST":
             return True
-
         course_id = request.data.get("course_id")
         if not course_id:
             return False
-
         user = request.user
-
         return Enrollment.objects.filter(user=user, course_id=course_id).exists()
 
 
 class IsEnrolled(permissions.BasePermission):
-    message = "Bạn chưa đăng ký khóa học này."
 
     def has_object_permission(self, request, view, obj):
         if not request.user.is_authenticated:
@@ -57,4 +53,4 @@ class IsCourseOwner(permissions.BasePermission):
 
 class IsTeacher(BasePermission):
     def has_permission(self, request, view):
-        return request.user.role == RoleChoice.TEACHER
+        return request.user.role == RoleChoice.TEACHER and request.user.is_authenticated
