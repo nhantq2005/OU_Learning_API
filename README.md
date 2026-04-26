@@ -1,6 +1,6 @@
 # OU Learning API
 
-OU Learning API là hệ thống backend xây dựng bằng Django phục vụ quản lý khóa học, bài học và tiến trình học tập cho sinh viên Đại học Mở.
+OU Learning API là hệ thống backend xây dựng bằng Django phục vụ quản lý khóa học, bài học và tiến trình học tập cho sinh viên.
 
 ## Tính năng chính
 
@@ -68,7 +68,3 @@ oulearningapis/
 ## Đóng góp
 
 Mọi đóng góp đều được hoan nghênh! Vui lòng tạo pull request hoặc issue để thảo luận thêm.
-
-## Giấy phép
-
-Dự án này sử dụng giấy phép MIT.
