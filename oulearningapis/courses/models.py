@@ -22,7 +22,6 @@ class User(AbstractUser):
 
 class InstructorProfile(models.Model):
     document = CloudinaryField(null=False)
-    # status = models.CharField(max_length=20, choices=StatusChoice.choices, default=StatusChoice.PENDING)
     bank_account = models.CharField(max_length=50, null=True)
     expertise = models.CharField(max_length=255)
 
@@ -167,4 +166,4 @@ class Transaction(Interaction):
     )
 
     def __str__(self):
-        return self.amount.__str__()
+        return self.amount.__str__() if self.amount else "No amount"

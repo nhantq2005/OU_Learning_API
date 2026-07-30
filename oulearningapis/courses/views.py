@@ -163,7 +163,6 @@ class CourseView(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView,
 
         teacher_id = self.request.query_params.get('teacher_id')
         if teacher_id:
-            # SỬA LẠI THÀNH: instructor_id
             query = query.filter(instructor_id=teacher_id)
 
         min_price = self.request.query_params.get('min_price')
@@ -407,10 +406,6 @@ class TeacherDashboardStatsView(APIView):
 
     def get(self, request):
         user = request.user
-
-        if user.role != 'teacher':
-            return Response({"detail": "Bạn không có quyền truy cập."}, status=status.HTTP_403_FORBIDDEN)
-
         my_courses = Course.objects.filter(instructor=user)
 
         total_courses = my_courses.count()

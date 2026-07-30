@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 import json
 from dotenv import load_dotenv
+
 load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -42,7 +43,6 @@ INSTALLED_APPS = [
     'debug_toolbar',
     'corsheaders',
     'oauth2_provider',
-
     'rest_framework.authtoken',
     'dj_rest_auth',
     'django.contrib.sites',
@@ -66,7 +66,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'debug_toolbar.middleware.DebugToolbarMiddleware',
     'courses.middleware.OAuth2LoginMiddleware',
-'allauth.account.middleware.AccountMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
 
 ]
 
@@ -128,9 +128,9 @@ SOCIALACCOUNT_PROVIDERS = {
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'oulearningdb',
+        'NAME': 'learningdb',
         'USER': 'root',
-        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'PASSWORD': 'quocnhan2005',
         'HOST': ''  # mặc định localhost
     }
 }
@@ -146,9 +146,9 @@ import cloudinary.uploader
 import cloudinary.api
 
 cloudinary.config(
-    cloud_name=os.getenv('CLOUD_NAME'),
-    api_key=os.getenv('API_KEY'),
-    api_secret=os.getenv('API_SECRET')
+    cloud_name='duk4u0tsp',
+    api_key='169233679562821',
+    api_secret='1as0RHa0xZv-7VrWx_ltUJ2Tgs4'
 )
 
 # Password validation
@@ -197,5 +197,5 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+EMAIL_HOST_USER = 'nhan.tq2005@gmail.com'
+EMAIL_HOST_PASSWORD = 'tloi pscy lhzf bwwu'

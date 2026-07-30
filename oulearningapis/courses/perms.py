@@ -21,7 +21,6 @@ class HasLearnedCourse(BasePermission):
 
 
 class IsEnrolled(permissions.BasePermission):
-
     def has_object_permission(self, request, view, obj):
         if not request.user.is_authenticated:
             return False
@@ -53,4 +52,4 @@ class IsCourseOwner(permissions.BasePermission):
 
 class IsTeacher(BasePermission):
     def has_permission(self, request, view):
-        return request.user.role == RoleChoice.TEACHER and request.user.is_authenticated
+        return bool(request.user and request.user.is_authenticated and getattr(request.user, 'role', '') == RoleChoice.TEACHER)
